@@ -18,7 +18,7 @@ Config.StartGridColumns = 6
 Config.StartGridSpacing = 1.5
 
 Config.StartCoords = vector4(1691.28, 3252.39, 40.98, 104.0)
-Config.FinishCoords = vector3(1783.33, 3241.27, 41.12)
+Config.FinishCoords = vector3(1292.73, 3141.78, 40.41)
 Config.SafeReturnCoords = vector4(-2621.66, 5253.71, 2108.04, 0.0)
 
 Config.Cycle = {
