@@ -21,6 +21,28 @@ Config.StartCoords = vector4(1691.28, 3252.39, 40.98, 104.0)
 Config.FinishCoords = vector3(1292.73, 3141.78, 40.41)
 Config.SafeReturnCoords = vector4(-2621.66, 5253.71, 2108.04, 0.0)
 
+Config.Guards = {
+    enabled = true,
+    model = 's_m_y_blackops_01',
+    weapon = `WEAPON_CARBINERIFLE`,
+    shootDelayMs = 900,
+    positions = {
+        vector4(1326.79, 3166.14, 40.53, 256.54),
+        vector4(1327.11, 3163.3, 40.5, 298.65),
+        vector4(1331.37, 3139.83, 40.45, 263.17),
+        vector4(1332.14, 3135.56, 40.5, 292.12),
+        vector4(1623.01, 3246.89, 40.54, 262.19),
+        vector4(1623.87, 3244.13, 40.54, 281.13),
+        vector4(1631.99, 3216.32, 40.48, 293.86),
+        vector4(1633.03, 3212.43, 40.53, 266.95),
+        vector4(1483.71, 3208.63, 40.53, 294.38),
+        vector4(1484.78, 3206.14, 40.5, 281.81),
+        vector4(1489.9, 3183.28, 40.45, 292.25),
+        vector4(1491.01, 3180.6, 40.48, 281.15)
+
+    }
+}
+
 Config.Cycle = {
     green = { min = 7500, max = 10500 },
     yellow = { min = 1300, max = 1800 },

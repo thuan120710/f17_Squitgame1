@@ -14,6 +14,8 @@ local redAnchor = nil
 local redStartedAt = 0
 local oldOutfit = nil
 local finishBlip = nil
+local guards = {}
+local guardsShooting = false
 local raceSlot = 1
 local ending = false
 local phaseSeq = 0
@@ -214,6 +216,90 @@ local function createFinishBlip()
     EndTextCommandSetBlipName(finishBlip)
 end
 
+local function getHash(value)
+    if type(value) == 'number' then return value end
+    return GetHashKey(value)
+end
+
+local function requestModel(model)
+    local hash = getHash(model)
+    if not IsModelInCdimage(hash) then return nil end
+
+    RequestModel(hash)
+    local timeout = GetGameTimer() + 5000
+    while not HasModelLoaded(hash) and GetGameTimer() < timeout do
+        Wait(0)
+    end
+
+    return HasModelLoaded(hash) and hash or nil
+end
+
+local function deleteGuards()
+    guardsShooting = false
+
+    for _, guard in ipairs(guards) do
+        if DoesEntityExist(guard) then
+            DeleteEntity(guard)
+        end
+    end
+
+    guards = {}
+end
+
+local function spawnGuards()
+    deleteGuards()
+
+    if not Config.Guards or not Config.Guards.enabled then return end
+
+    local model = requestModel(Config.Guards.model or 's_m_y_blackops_01')
+    if not model then return end
+
+    local weapon = getHash(Config.Guards.weapon or `WEAPON_CARBINERIFLE`)
+    for _, coords in ipairs(Config.Guards.positions or {}) do
+        local guard = CreatePed(4, model, coords.x, coords.y, coords.z, coords.w or 0.0, false, true)
+        if DoesEntityExist(guard) then
+            SetEntityAsMissionEntity(guard, true, true)
+            SetEntityInvincible(guard, true)
+            FreezeEntityPosition(guard, true)
+            SetBlockingOfNonTemporaryEvents(guard, true)
+            SetPedCanRagdoll(guard, false)
+            SetPedFleeAttributes(guard, 0, false)
+            SetPedCombatAttributes(guard, 46, true)
+            GiveWeaponToPed(guard, weapon, 999, false, true)
+            SetCurrentPedWeapon(guard, weapon, true)
+            table.insert(guards, guard)
+        end
+    end
+
+    SetModelAsNoLongerNeeded(model)
+end
+
+local function guardsShootPlayer()
+    if guardsShooting then return end
+    guardsShooting = true
+    if #guards == 0 then return end
+
+    local shootDelay = (Config.Guards and Config.Guards.shootDelayMs) or 900
+    local ped = PlayerPedId()
+    for _, guard in ipairs(guards) do
+        if DoesEntityExist(guard) then
+            FreezeEntityPosition(guard, false)
+            ClearPedTasksImmediately(guard)
+            TaskAimGunAtEntity(guard, ped, 450, false)
+        end
+    end
+
+    Wait(250)
+
+    for _, guard in ipairs(guards) do
+        if DoesEntityExist(guard) then
+            TaskShootAtEntity(guard, ped, shootDelay, `FIRING_PATTERN_FULL_AUTO`)
+        end
+    end
+
+    Wait(shootDelay)
+end
+
 local function sendUi(action, payload)
     payload = payload or {}
     payload.action = action
@@ -293,7 +379,9 @@ local function cleanupGame()
     phaseDuration = 0
     phaseEndsAt = 0
     redAnchor = nil
+    guardsShooting = false
     clearFinishBlip()
+    deleteGuards()
     restoreOutfit()
     sendUi('hide')
 
@@ -363,8 +451,6 @@ local function startGame(slot)
     activeGame = true
     gameRunning = false
 
-    saveAndApplyOutfit()
-
     if Config.UseRoutingBucket then
         TriggerServerEvent('f17_squitgame:server:setRoutingBucket', Config.RoutingBucket)
     end
@@ -375,6 +461,9 @@ local function startGame(slot)
     SetEntityHeading(ped, coords.w)
     ClearPedTasksImmediately(ped)
     DoScreenFadeIn(450)
+
+    saveAndApplyOutfit()
+    spawnGuards()
 
     FreezeEntityPosition(ped, true)
     playSound('5count', 0.5)
@@ -495,6 +584,7 @@ CreateThread(function()
                     local velocity = GetEntitySpeed(ped)
 
                     if moved > (Config.RedMoveThreshold or 0.22) and velocity > (Config.AllowSlightVelocity or 0.18) then
+                        guardsShootPlayer()
                         finishGame('lose', Config.Lang.loseMove)
                     end
                 end
