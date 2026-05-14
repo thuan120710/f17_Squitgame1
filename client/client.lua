@@ -16,6 +16,7 @@ local oldOutfit = nil
 local finishBlip = nil
 local guards = {}
 local guardsShooting = false
+local doll = nil
 local raceSlot = 1
 local ending = false
 local phaseSeq = 0
@@ -246,6 +247,14 @@ local function deleteGuards()
     guards = {}
 end
 
+local function deleteDoll()
+    if doll and DoesEntityExist(doll) then
+        DeleteEntity(doll)
+    end
+
+    doll = nil
+end
+
 local function spawnGuards()
     deleteGuards()
 
@@ -268,6 +277,48 @@ local function spawnGuards()
             GiveWeaponToPed(guard, weapon, 999, false, true)
             SetCurrentPedWeapon(guard, weapon, true)
             table.insert(guards, guard)
+        end
+    end
+
+    SetModelAsNoLongerNeeded(model)
+end
+
+local function spawnDoll()
+    deleteDoll()
+
+    if not Config.Doll or not Config.Doll.enabled then return end
+
+    local model = requestModel(Config.Doll.model or 'GiantDoll')
+    if not model then
+        if Config.Debug then
+            print(('[f17_Squitgame] Failed to load doll model: %s'):format(Config.Doll.model or 'GiantDoll'))
+        end
+        return
+    end
+
+    local coords = Config.Doll.coords
+    if not coords then
+        SetModelAsNoLongerNeeded(model)
+        return
+    end
+
+    if Config.Doll.type == 'object' then
+        doll = CreateObjectNoOffset(model, coords.x, coords.y, coords.z, false, true, false)
+    else
+        doll = CreatePed(4, model, coords.x, coords.y, coords.z, coords.w or 0.0, false, true)
+    end
+
+    if DoesEntityExist(doll) then
+        SetEntityAsMissionEntity(doll, true, true)
+        SetEntityHeading(doll, coords.w or 0.0)
+        SetEntityInvincible(doll, true)
+        FreezeEntityPosition(doll, true)
+        SetEntityCollision(doll, true, true)
+
+        if IsEntityAPed(doll) then
+            SetBlockingOfNonTemporaryEvents(doll, true)
+            SetPedCanRagdoll(doll, false)
+            SetPedFleeAttributes(doll, 0, false)
         end
     end
 
@@ -382,6 +433,7 @@ local function cleanupGame()
     guardsShooting = false
     clearFinishBlip()
     deleteGuards()
+    deleteDoll()
     restoreOutfit()
     sendUi('hide')
 
@@ -464,6 +516,7 @@ local function startGame(slot)
 
     saveAndApplyOutfit()
     spawnGuards()
+    spawnDoll()
 
     FreezeEntityPosition(ped, true)
     playSound('5count', 0.5)

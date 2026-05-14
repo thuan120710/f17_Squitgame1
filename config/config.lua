@@ -43,6 +43,13 @@ Config.Guards = {
     }
 }
 
+Config.Doll = {
+    enabled = true,
+    model = 'GiantDoll',
+    type = 'ped', -- ped/object
+    coords = vector4(1326.51, 3150.4, 40.41, 274.34)
+}
+
 Config.Cycle = {
     green = { min = 7500, max = 10500 },
     yellow = { min = 1300, max = 1800 },

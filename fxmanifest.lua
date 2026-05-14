@@ -29,8 +29,14 @@ files {
     'html/app.js',
     'html/assets/*.css',
     'html/assets/*.js',
-    'html/sounds/*.mp3'
+    'html/sounds/*.mp3',
+    'stream/*.ydd',
+    'stream/*.yft',
+    'stream/*.ymt',
+    'stream/*.ytd'
 }
+
+data_file 'PED_METADATA_FILE' 'stream/GiantDoll.ymt'
 
 server_exports {
     'StartMiniGame'
