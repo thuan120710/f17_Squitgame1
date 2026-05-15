@@ -4,6 +4,23 @@ local raceState = 'idle'
 local currentRaceId = 0
 local finishOrder = 0
 local totalPlayers = 0
+local phaseThreadRunning = false
+local currentPhase = 'green'
+local phaseDuration = 0
+local phaseEndsAt = 0
+
+local function getTimer()
+    if GetGameTimer then
+        return GetGameTimer()
+    end
+
+    return os.time() * 1000
+end
+
+local function randomDuration(name)
+    local phase = Config.Cycle[name] or Config.Cycle.green
+    return math.random(phase.min, phase.max)
+end
 
 local function countTable(list)
     local count = 0
@@ -15,6 +32,63 @@ end
 
 local function notify(src, message, notifyType, duration)
     TriggerClientEvent('f17_squitgame:client:notify', src, message, notifyType or 'primary', duration or 3500)
+end
+
+local function sendPhase(src)
+    local remaining = math.max(0, phaseEndsAt - getTimer())
+    if Config.Debug then
+        print(('[f17_Squitgame] Send phase %s to %s duration=%d remaining=%d'):format(currentPhase, src, phaseDuration, remaining))
+    end
+    TriggerClientEvent('f17_squitgame:client:setPhase', src, currentPhase, phaseDuration, remaining)
+end
+
+local function broadcastPhase()
+    for src, session in pairs(activePlayers) do
+        if session.ready then
+            sendPhase(src)
+        end
+    end
+end
+
+local function nextPhase(phase)
+    if phase == 'green' then
+        return 'yellow'
+    end
+
+    if phase == 'yellow' then
+        return 'red'
+    end
+
+    return 'green'
+end
+
+local function startPhaseLoop()
+    if phaseThreadRunning then return end
+
+    phaseThreadRunning = true
+    local raceId = currentRaceId
+
+    CreateThread(function()
+        currentPhase = 'green'
+
+        while raceState == 'active' and currentRaceId == raceId and countTable(activePlayers) > 0 do
+            phaseDuration = randomDuration(currentPhase)
+            phaseEndsAt = getTimer() + phaseDuration
+            broadcastPhase()
+
+            local waitUntil = phaseEndsAt
+            while raceState == 'active' and currentRaceId == raceId and getTimer() < waitUntil and countTable(activePlayers) > 0 do
+                Wait(250)
+            end
+
+            currentPhase = nextPhase(currentPhase)
+        end
+
+        phaseThreadRunning = false
+        currentPhase = 'green'
+        phaseDuration = 0
+        phaseEndsAt = 0
+    end)
 end
 
 RegisterServerEvent('f17_squitgame:server:setRoutingBucket', function(dimension)
@@ -76,7 +150,8 @@ local function registerActivePlayer(src, slot)
     activePlayers[src] = {
         raceId = currentRaceId,
         cid = player.PlayerData.citizenid,
-        name = (player.PlayerData.charinfo.firstname or '') .. ' ' .. (player.PlayerData.charinfo.lastname or '')
+        name = (player.PlayerData.charinfo.firstname or '') .. ' ' .. (player.PlayerData.charinfo.lastname or ''),
+        ready = false
     }
 
     TriggerClientEvent('f17_squitgame:client:startGame', src, slot)
@@ -100,6 +175,21 @@ RegisterNetEvent('f17_squitgame:server:join', function()
 
     totalPlayers = totalPlayers + 1
     registerActivePlayer(src, totalPlayers)
+end)
+
+RegisterNetEvent('f17_squitgame:server:ready', function()
+    local src = source
+    local session = activePlayers[src]
+    if not session then return end
+
+    session.ready = true
+
+    if phaseThreadRunning and phaseDuration > 0 then
+        sendPhase(src)
+        return
+    end
+
+    startPhaseLoop()
 end)
 
 RegisterNetEvent('f17_squitgame:server:finish', function(elapsed)

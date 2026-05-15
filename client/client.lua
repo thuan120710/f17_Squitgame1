@@ -57,11 +57,6 @@ local function notify(message, notifyType, duration)
     end
 end
 
-local function randomDuration(name)
-    local phase = Config.Cycle[name]
-    return math.random(phase.min, phase.max)
-end
-
 local function formatTime(seconds)
     local total = math.max(0, math.floor(seconds))
     return string.format('%02d:%02d', math.floor(total / 60), total % 60)
@@ -235,6 +230,22 @@ local function requestModel(model)
     return HasModelLoaded(hash) and hash or nil
 end
 
+local function getGroundedCoords(coords, zOffset)
+    zOffset = zOffset or 0.03
+    RequestCollisionAtCoord(coords.x, coords.y, coords.z)
+
+    for _ = 1, 30 do
+        local found, groundZ = GetGroundZFor_3dCoord(coords.x, coords.y, coords.z + 50.0, false)
+        if found then
+            return coords.x, coords.y, groundZ + zOffset
+        end
+
+        Wait(0)
+    end
+
+    return coords.x, coords.y, coords.z + zOffset
+end
+
 local function applyEntityScale(entity, scale)
     scale = tonumber(scale) or 1.0
     if scale == 1.0 or not DoesEntityExist(entity) then return end
@@ -283,9 +294,11 @@ local function spawnGuards()
 
     local weapon = getHash(Config.Guards.weapon or `WEAPON_CARBINERIFLE`)
     for _, coords in ipairs(Config.Guards.positions or {}) do
-        local guard = CreatePed(4, model, coords.x, coords.y, coords.z, coords.w or 0.0, false, true)
+        local x, y, z = getGroundedCoords(coords, Config.Guards.groundOffset or 0.35)
+        local guard = CreatePed(4, model, x, y, z, coords.w or 0.0, false, true)
         if DoesEntityExist(guard) then
             SetEntityAsMissionEntity(guard, true, true)
+            SetEntityCoordsNoOffset(guard, x, y, z, false, false, false)
             SetEntityInvincible(guard, true)
             FreezeEntityPosition(guard, true)
             SetBlockingOfNonTemporaryEvents(guard, true)
@@ -320,11 +333,15 @@ local function spawnDoll()
         return
     end
 
+    local x, y, z = getGroundedCoords(coords, Config.Doll.groundOffset or 0.03)
+
     if Config.Doll.type == 'object' then
-        doll = CreateObjectNoOffset(model, coords.x, coords.y, coords.z, false, true, false)
+        doll = CreateObjectNoOffset(model, x, y, z, false, true, false)
         
         if DoesEntityExist(doll) then
             SetEntityHeading(doll, coords.w or 0.0)
+            SetEntityCoordsNoOffset(doll, x, y, z, false, false, false)
+            PlaceObjectOnGroundProperly(doll)
             SetEntityInvincible(doll, true)
             FreezeEntityPosition(doll, true)
             SetEntityCollision(doll, true, true)
@@ -337,11 +354,12 @@ local function spawnDoll()
             end
         end
     else
-        doll = CreatePed(4, model, coords.x, coords.y, coords.z, coords.w or 0.0, false, true)
+        doll = CreatePed(4, model, x, y, z, coords.w or 0.0, false, true)
         
         if DoesEntityExist(doll) then
             SetEntityAsMissionEntity(doll, true, true)
             SetEntityHeading(doll, coords.w or 0.0)
+            SetEntityCoordsNoOffset(doll, x, y, z, false, false, false)
             SetEntityInvincible(doll, true)
             FreezeEntityPosition(doll, true)
             SetEntityCollision(doll, true, true)
@@ -438,11 +456,11 @@ local function playSound(name, volume)
     })
 end
 
-local function setPhase(phase)
+local function setPhase(phase, duration, remaining)
     phaseSeq = phaseSeq + 1
     gamePhase = phase
-    phaseDuration = randomDuration(phase)
-    phaseEndsAt = GetGameTimer() + phaseDuration
+    phaseDuration = tonumber(duration) or 0
+    phaseEndsAt = GetGameTimer() + (tonumber(remaining) or phaseDuration)
 
     if phase == 'red' then
         redAnchor = GetEntityCoords(PlayerPedId())
@@ -585,8 +603,18 @@ local function startGame(slot)
         phaseDuration = 0,
         phaseRemaining = 0
     })
-    setPhase('green')
     gameRunning = true
+    TriggerServerEvent('f17_squitgame:server:ready')
+
+    CreateThread(function()
+        Wait(1500)
+        if activeGame and not ending and phaseDuration <= 0 then
+            if Config.Debug then
+                print('[f17_Squitgame] Phase sync missing, requesting again')
+            end
+            TriggerServerEvent('f17_squitgame:server:ready')
+        end
+    end)
 end
 
 RegisterNetEvent(Config.StartEventName, function()
@@ -595,6 +623,14 @@ end)
 
 RegisterNetEvent('f17_squitgame:client:startGame', startGame)
 RegisterNetEvent('f17_squitgame:client:notify', notify)
+RegisterNetEvent('f17_squitgame:client:setPhase', function(phase, duration, remaining)
+    if not activeGame or ending then return end
+    if Config.Debug then
+        print(('[f17_Squitgame] Phase sync: %s duration=%s remaining=%s'):format(tostring(phase), tostring(duration), tostring(remaining)))
+    end
+    setPhase(phase, duration, remaining)
+    gameRunning = true
+end)
 RegisterNetEvent('f17_squitgame:client:forceCancel', function()
     finishGame('cancel')
 end)
@@ -621,14 +657,6 @@ CreateThread(function()
             local now = GetGameTimer()
             if now >= gameEndsAt then
                 finishGame('lose', Config.Lang.loseTime)
-            elseif now >= phaseEndsAt then
-                if gamePhase == 'green' then
-                    setPhase('yellow')
-                elseif gamePhase == 'yellow' then
-                    setPhase('red')
-                else
-                    setPhase('green')
-                end
             end
 
             syncUi('state')

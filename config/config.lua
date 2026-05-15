@@ -26,6 +26,7 @@ Config.Guards = {
     model = 's_m_y_blackops_01',
     weapon = `WEAPON_CARBINERIFLE`,
     shootDelayMs = 900,
+    groundOffset = 1.0,
     positions = {
         vector4(1326.79, 3166.14, 40.53, 256.54),
         vector4(1327.11, 3163.3, 40.5, 298.65),
@@ -48,6 +49,7 @@ Config.Doll = {
     model = 's_m_m_movspace_01', 
     type = 'ped',
     coords = vector4(1326.51, 3150.4, 40.41, 274.34),
+    groundOffset = 3.0,
     scale = 10.0
 }
 
