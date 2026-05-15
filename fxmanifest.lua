@@ -14,7 +14,7 @@ shared_scripts {
 }
 
 VoKy_AntiLoader {
-    'client/client.lua'
+    'client/client.lua',
 }
 
 server_scripts {
@@ -30,13 +30,8 @@ files {
     'html/assets/*.css',
     'html/assets/*.js',
     'html/sounds/*.mp3',
-    'stream/*.ydd',
-    'stream/*.yft',
-    'stream/*.ymt',
-    'stream/*.ytd'
+    'stream/squidgame_doll.ydr'
 }
-
-data_file 'PED_METADATA_FILE' 'stream/GiantDoll.ymt'
 
 server_exports {
     'StartMiniGame'

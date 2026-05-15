@@ -235,6 +235,24 @@ local function requestModel(model)
     return HasModelLoaded(hash) and hash or nil
 end
 
+local function applyEntityScale(entity, scale)
+    scale = tonumber(scale) or 1.0
+    if scale == 1.0 or not DoesEntityExist(entity) then return end
+
+    local coords = GetEntityCoords(entity)
+    local forward = GetEntityForwardVector(entity)
+    local rightX = forward.y
+    local rightY = -forward.x
+
+    SetEntityMatrix(
+        entity,
+        forward.x * scale, forward.y * scale, forward.z * scale,
+        rightX * scale, rightY * scale, 0.0,
+        0.0, 0.0, scale,
+        coords.x, coords.y, coords.z
+    )
+end
+
 local function deleteGuards()
     guardsShooting = false
 
@@ -288,10 +306,10 @@ local function spawnDoll()
 
     if not Config.Doll or not Config.Doll.enabled then return end
 
-    local model = requestModel(Config.Doll.model or 'GiantDoll')
+    local model = requestModel(Config.Doll.model or 'prop_alien_egg_01')
     if not model then
         if Config.Debug then
-            print(('[f17_Squitgame] Failed to load doll model: %s'):format(Config.Doll.model or 'GiantDoll'))
+            print(('[f17_Squitgame] Failed to load doll model: %s'):format(Config.Doll.model or 'prop_alien_egg_01'))
         end
         return
     end
@@ -304,21 +322,41 @@ local function spawnDoll()
 
     if Config.Doll.type == 'object' then
         doll = CreateObjectNoOffset(model, coords.x, coords.y, coords.z, false, true, false)
+        
+        if DoesEntityExist(doll) then
+            SetEntityHeading(doll, coords.w or 0.0)
+            SetEntityInvincible(doll, true)
+            FreezeEntityPosition(doll, true)
+            SetEntityCollision(doll, true, true)
+            
+            local scale = Config.Doll.scale or 1.0
+            applyEntityScale(doll, scale)
+            
+            if Config.Debug then
+                print(('[f17_Squitgame] Object doll spawned with scale: %.2f'):format(scale))
+            end
+        end
     else
         doll = CreatePed(4, model, coords.x, coords.y, coords.z, coords.w or 0.0, false, true)
-    end
+        
+        if DoesEntityExist(doll) then
+            SetEntityAsMissionEntity(doll, true, true)
+            SetEntityHeading(doll, coords.w or 0.0)
+            SetEntityInvincible(doll, true)
+            FreezeEntityPosition(doll, true)
+            SetEntityCollision(doll, true, true)
 
-    if DoesEntityExist(doll) then
-        SetEntityAsMissionEntity(doll, true, true)
-        SetEntityHeading(doll, coords.w or 0.0)
-        SetEntityInvincible(doll, true)
-        FreezeEntityPosition(doll, true)
-        SetEntityCollision(doll, true, true)
+            local scale = Config.Doll.scale or 1.0
+            SetPedConfigFlag(doll, 223, true)
+            applyEntityScale(doll, scale)
 
-        if IsEntityAPed(doll) then
             SetBlockingOfNonTemporaryEvents(doll, true)
             SetPedCanRagdoll(doll, false)
             SetPedFleeAttributes(doll, 0, false)
+            
+            if Config.Debug then
+                print(('[f17_Squitgame] Ped doll spawned with scale: %.2f'):format(scale))
+            end
         end
     end
 

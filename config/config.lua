@@ -1,7 +1,7 @@
 Config = {}
 QBCore = exports["qb-core"]:GetCoreObject()
 
-Config.Debug = false
+Config.Debug = true
 Config.Command = 'squitgame'
 Config.StartEventName = 'f17_squitgame:start'
 
@@ -45,9 +45,10 @@ Config.Guards = {
 
 Config.Doll = {
     enabled = true,
-    model = 'GiantDoll',
-    type = 'ped', -- ped/object
-    coords = vector4(1326.51, 3150.4, 40.41, 274.34)
+    model = 's_m_m_movspace_01', 
+    type = 'ped',
+    coords = vector4(1326.51, 3150.4, 40.41, 274.34),
+    scale = 10.0
 }
 
 Config.Cycle = {
