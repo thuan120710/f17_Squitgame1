@@ -1,9 +1,12 @@
 local waitingPlayers = {}
+local waitingOrder = {}
 local activePlayers = {}
 local raceState = 'idle'
 local currentRaceId = 0
 local finishOrder = 0
 local totalPlayers = 0
+local lobbyThreadRunning = false
+local lobbyEndsAt = 0
 local phaseThreadRunning = false
 local currentPhase = 'green'
 local phaseDuration = 0
@@ -34,11 +37,22 @@ local function notify(src, message, notifyType, duration)
     TriggerClientEvent('f17_squitgame:client:notify', src, message, notifyType or 'primary', duration or 3500)
 end
 
+local function notifyWaitingPlayers(message, notifyType, duration)
+    for src in pairs(waitingPlayers) do
+        notify(src, message, notifyType, duration)
+    end
+end
+
+local function clearWaitingPlayers()
+    waitingPlayers = {}
+    waitingOrder = {}
+end
+
 local function sendPhase(src)
     local remaining = math.max(0, phaseEndsAt - getTimer())
-    if Config.Debug then
-        print(('[f17_Squitgame] Send phase %s to %s duration=%d remaining=%d'):format(currentPhase, src, phaseDuration, remaining))
-    end
+    -- if Config.Debug then
+    --     print(('[f17_Squitgame] Send phase %s to %s duration=%d remaining=%d'):format(currentPhase, src, phaseDuration, remaining))
+    -- end
     TriggerClientEvent('f17_squitgame:client:setPhase', src, currentPhase, phaseDuration, remaining)
 end
 
@@ -157,6 +171,59 @@ local function registerActivePlayer(src, slot)
     TriggerClientEvent('f17_squitgame:client:startGame', src, slot)
 end
 
+local function startWaitingPlayers()
+    if raceState ~= 'waiting' then return end
+
+    currentRaceId = currentRaceId + 1
+    finishOrder = 0
+    totalPlayers = 0
+    activePlayers = {}
+    raceState = 'active'
+
+    for _, src in ipairs(waitingOrder) do
+        if waitingPlayers[src] and QBCore.Functions.GetPlayer(src) then
+            totalPlayers = totalPlayers + 1
+            notify(src, Config.Lang.starting, 'primary', 5000)
+            registerActivePlayer(src, totalPlayers)
+        end
+    end
+
+    clearWaitingPlayers()
+
+    if totalPlayers == 0 then
+        raceState = 'idle'
+        finishOrder = 0
+    end
+end
+
+local function startJoinLobby()
+    if lobbyThreadRunning then return end
+
+    lobbyThreadRunning = true
+    raceState = 'waiting'
+
+    local waitSeconds = Config.JoinWaitSeconds or 30
+    lobbyEndsAt = getTimer() + (waitSeconds * 1000)
+    CreateThread(function()
+        Wait(0)
+        notifyWaitingPlayers((Config.Lang.lobbyStarted):format(waitSeconds), 'primary', 7000)
+
+        for remaining = waitSeconds, 1, -1 do
+            if raceState ~= 'waiting' then break end
+
+            if remaining == 10 or remaining <= 5 then
+                notifyWaitingPlayers(('Squid Game bat dau sau %d giay.'):format(remaining), 'primary', 1200)
+            end
+
+            Wait(1000)
+        end
+
+        lobbyThreadRunning = false
+        lobbyEndsAt = 0
+        startWaitingPlayers()
+    end)
+end
+
 RegisterNetEvent('f17_squitgame:server:join', function()
     local src = source
     if activePlayers[src] then
@@ -164,17 +231,31 @@ RegisterNetEvent('f17_squitgame:server:join', function()
         return
     end
 
-    if raceState == 'idle' then
-        currentRaceId = currentRaceId + 1
-        finishOrder = 0
-        totalPlayers = 1
-        raceState = 'active'
-        registerActivePlayer(src, 1)
+    if waitingPlayers[src] then
+        notify(src, Config.Lang.lobbyAlreadyJoined, 'error')
         return
     end
 
-    totalPlayers = totalPlayers + 1
-    registerActivePlayer(src, totalPlayers)
+    if raceState == 'idle' then
+        clearWaitingPlayers()
+        startJoinLobby()
+    end
+
+    if raceState ~= 'waiting' then
+        notify(src, Config.Lang.gameRunning, 'error', 5000)
+        return
+    end
+
+    waitingPlayers[src] = {
+        joinedAt = getTimer()
+    }
+    waitingOrder[#waitingOrder + 1] = src
+
+    notify(src, Config.Lang.lobbyJoined, 'success', 5000)
+    if lobbyEndsAt > 0 then
+        local remaining = math.ceil(math.max(0, lobbyEndsAt - getTimer()) / 1000)
+        notify(src, ('Squid Game bat dau sau %d giay.'):format(remaining), 'primary', 5000)
+    end
 end)
 
 RegisterNetEvent('f17_squitgame:server:ready', function()
@@ -254,7 +335,7 @@ function StartMiniGame(modeOrData, dataOrLabel, labelMiniGame)
     finishOrder = 0
     totalPlayers = 0
     activePlayers = {}
-    waitingPlayers = {}
+    clearWaitingPlayers()
     raceState = 'active'
 
     for citizenId in pairs(data or {}) do
@@ -267,7 +348,7 @@ function StartMiniGame(modeOrData, dataOrLabel, labelMiniGame)
         end
     end
 
-    print(('[f17_Squitgame] Started %s with %d players'):format(label or 'Squit Game', totalPlayers))
+    -- print(('[f17_Squitgame] Started %s with %d players'):format(label or 'Squit Game', totalPlayers))
 end
 
 exports('StartMiniGame', StartMiniGame)

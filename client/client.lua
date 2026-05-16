@@ -321,9 +321,9 @@ local function spawnDoll()
 
     local model = requestModel(Config.Doll.model or 'prop_alien_egg_01')
     if not model then
-        if Config.Debug then
-            print(('[f17_Squitgame] Failed to load doll model: %s'):format(Config.Doll.model or 'prop_alien_egg_01'))
-        end
+        -- if Config.Debug then
+        --     print(('[f17_Squitgame] Failed to load doll model: %s'):format(Config.Doll.model or 'prop_alien_egg_01'))
+        -- end
         return
     end
 
@@ -349,9 +349,9 @@ local function spawnDoll()
             local scale = Config.Doll.scale or 1.0
             applyEntityScale(doll, scale)
             
-            if Config.Debug then
-                print(('[f17_Squitgame] Object doll spawned with scale: %.2f'):format(scale))
-            end
+            -- if Config.Debug then
+            --     print(('[f17_Squitgame] Object doll spawned with scale: %.2f'):format(scale))
+            -- end
         end
     else
         doll = CreatePed(4, model, x, y, z, coords.w or 0.0, false, true)
@@ -372,9 +372,9 @@ local function spawnDoll()
             SetPedCanRagdoll(doll, false)
             SetPedFleeAttributes(doll, 0, false)
             
-            if Config.Debug then
-                print(('[f17_Squitgame] Ped doll spawned with scale: %.2f'):format(scale))
-            end
+            -- if Config.Debug then
+            --     print(('[f17_Squitgame] Ped doll spawned with scale: %.2f'):format(scale))
+            -- end
         end
     end
 
@@ -625,9 +625,9 @@ RegisterNetEvent('f17_squitgame:client:startGame', startGame)
 RegisterNetEvent('f17_squitgame:client:notify', notify)
 RegisterNetEvent('f17_squitgame:client:setPhase', function(phase, duration, remaining)
     if not activeGame or ending then return end
-    if Config.Debug then
-        print(('[f17_Squitgame] Phase sync: %s duration=%s remaining=%s'):format(tostring(phase), tostring(duration), tostring(remaining)))
-    end
+    -- if Config.Debug then
+    --     print(('[f17_Squitgame] Phase sync: %s duration=%s remaining=%s'):format(tostring(phase), tostring(duration), tostring(remaining)))
+    -- end
     setPhase(phase, duration, remaining)
     gameRunning = true
 end)

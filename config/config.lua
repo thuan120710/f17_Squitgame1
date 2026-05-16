@@ -4,6 +4,7 @@ QBCore = exports["qb-core"]:GetCoreObject()
 Config.Debug = true
 Config.Command = 'squitgame'
 Config.StartEventName = 'f17_squitgame:start'
+Config.JoinWaitSeconds = 30
 
 Config.UseRoutingBucket = true
 Config.RoutingBucket = 1
@@ -48,8 +49,8 @@ Config.Doll = {
     enabled = true,
     model = 's_m_m_movspace_01', 
     type = 'ped',
-    coords = vector4(1326.51, 3150.4, 40.41, 274.34),
-    groundOffset = 3.0,
+    coords = vector4(1282.28, 3137.11, 40.41, 265.45),
+    groundOffset = 6.0,
     scale = 10.0
 }
 
@@ -150,5 +151,9 @@ Config.Lang = {
     loseMove = 'Ban da di chuyen khi DEN DO.',
     loseTime = 'Het gio, ban chua ve dich.',
     cancelled = 'Ban da roi khoi Squid Game.',
+    lobbyJoined = 'Ban da vao phong cho Squid Game.',
+    lobbyStarted = 'Phong cho Squid Game da mo, tran dau bat dau sau %d giay.',
+    lobbyAlreadyJoined = 'Ban da o trong phong cho Squid Game roi.',
+    gameRunning = 'Squid Game dang dien ra, vui long doi tran sau.',
     finishBlip = 'Squid Game Finish'
 }
