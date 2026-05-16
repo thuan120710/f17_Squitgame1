@@ -39,12 +39,11 @@ export default {
     const phaseDuration = ref(1)
     const phaseRemaining = ref(1)
     const resultLabel = ref('')
-    const phaseSeq = ref(0)
 
     const phaseLabels = {
-      green: 'CHAY',
-      yellow: 'CHUAN BI DUNG',
-      red: 'DUNG'
+      green: 'CHẠY',
+      yellow: 'CHUẨN BỊ DỪNG',
+      red: 'DỪNG'
     }
 
     const phaseLabel = computed(() => resultLabel.value || phaseLabels[phase.value] || phaseLabels.green)
@@ -64,13 +63,7 @@ export default {
       showCountdown.value = true
     }
 
-    const applyClientState = (data, force = false) => {
-      const incomingSeq = Number(data.seq || 0)
-      if (!force && incomingSeq > 0 && incomingSeq < phaseSeq.value) {
-        return
-      }
-
-      phaseSeq.value = Math.max(phaseSeq.value, incomingSeq)
+    const applyClientState = (data) => {
       phase.value = data.phase || phase.value || 'green'
       phaseDuration.value = Math.max(1, Number(data.phaseDuration ?? phaseDuration.value) || 1)
       phaseRemaining.value = Math.max(0, Number(data.phaseRemaining ?? phaseRemaining.value) || 0)
@@ -99,8 +92,7 @@ export default {
 
       if (data.action === 'show') {
         isVisible.value = true
-        phaseSeq.value = 0
-        applyClientState(data, true)
+        applyClientState(data)
         return
       }
 

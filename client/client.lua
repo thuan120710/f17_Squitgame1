@@ -19,7 +19,6 @@ local guardsShooting = false
 local doll = nil
 local raceSlot = 1
 local ending = false
-local phaseSeq = 0
 local outfitKvpKey = 'f17_squitgame_old_outfit'
 
 local function clearSavedOutfitKvp()
@@ -428,7 +427,6 @@ local function getUiStatePayload()
 
     return {
         phase = gamePhase,
-        seq = phaseSeq,
         phaseDuration = phaseDuration,
         phaseRemaining = currentPhaseRemaining,
         remaining = remaining
@@ -457,7 +455,6 @@ local function playSound(name, volume)
 end
 
 local function setPhase(phase, duration, remaining)
-    phaseSeq = phaseSeq + 1
     gamePhase = phase
     phaseDuration = tonumber(duration) or 0
     phaseEndsAt = GetGameTimer() + (tonumber(remaining) or phaseDuration)
@@ -481,7 +478,6 @@ local function cleanupGame()
     activeGame = false
     gameRunning = false
     ending = false
-    phaseSeq = 0
     gamePhase = 'green'
     phaseDuration = 0
     phaseEndsAt = 0
@@ -552,7 +548,6 @@ local function startGame(slot)
     local coords = getGridCoords(Config.StartCoords, slot or 1)
     raceSlot = slot or 1
     ending = false
-    phaseSeq = 0
     gamePhase = 'green'
     phaseDuration = 0
     phaseEndsAt = 0
@@ -599,7 +594,6 @@ local function startGame(slot)
         duration = Config.GameDurationSeconds,
         remaining = Config.GameDurationSeconds,
         phase = gamePhase,
-        seq = phaseSeq,
         phaseDuration = 0,
         phaseRemaining = 0
     })
@@ -660,7 +654,7 @@ CreateThread(function()
             end
 
             syncUi('state')
-            Wait(100)
+            Wait(250)
         end
     end
 end)
