@@ -157,6 +157,20 @@ local function resetIfEmpty()
     end
 end
 
+local function removeActivePlayer(src)
+    if not activePlayers[src] then return false end
+
+    activePlayers[src] = nil
+    resetIfEmpty()
+    return true
+end
+
+local function punishLeave(src)
+    if GetResourceState('f17_daotrentroi') == 'started' then
+        exports['f17_daotrentroi']:HinhPhatMinigame(src, '[SQUITGAME]', 'thoat')
+    end
+end
+
 local function registerActivePlayer(src, slot)
     local player = QBCore.Functions.GetPlayer(src)
     if not player then return end
@@ -297,25 +311,14 @@ end)
 
 RegisterNetEvent('f17_squitgame:server:timeout', function()
     local src = source
-    if not activePlayers[src] then return end
-
-    activePlayers[src] = nil
-
+    if not removeActivePlayer(src) then return end
     Config.LostPlayer(src)
-    resetIfEmpty()
 end)
 
 RegisterNetEvent('f17_squitgame:server:cancel', function()
     local src = source
-    if not activePlayers[src] then return end
-
-    activePlayers[src] = nil
-
-    if GetResourceState('f17_daotrentroi') == 'started' then
-        exports['f17_daotrentroi']:HinhPhatMinigame(src, '[SQUITGAME]', 'thoat')
-    end
-
-    resetIfEmpty()
+    if not removeActivePlayer(src) then return end
+    punishLeave(src)
 end)
 
 function StartMiniGame(modeOrData, dataOrLabel, labelMiniGame)
@@ -344,6 +347,11 @@ function StartMiniGame(modeOrData, dataOrLabel, labelMiniGame)
         end
     end
 
+    if totalPlayers == 0 then
+        raceState = 'idle'
+        finishOrder = 0
+    end
+
     -- print(('[f17_Squitgame] Started %s with %d players'):format(label or 'Squit Game', totalPlayers))
 end
 
@@ -355,11 +363,10 @@ end)
 
 AddEventHandler('playerDropped', function()
     local src = source
-    if activePlayers[src] and GetResourceState('f17_daotrentroi') == 'started' then
-        exports['f17_daotrentroi']:HinhPhatMinigame(src, '[SQUITGAME]', 'thoat')
+    if activePlayers[src] then
+        punishLeave(src)
     end
 
     waitingPlayers[src] = nil
-    activePlayers[src] = nil
-    resetIfEmpty()
+    removeActivePlayer(src)
 end)

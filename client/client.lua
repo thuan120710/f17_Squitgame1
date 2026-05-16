@@ -57,11 +57,6 @@ local function notify(message, notifyType, duration)
     end
 end
 
-local function formatTime(seconds)
-    local total = math.max(0, math.floor(seconds))
-    return string.format('%02d:%02d', math.floor(total / 60), total % 60)
-end
-
 local function getPedSex(ped)
     return IsPedModel(ped, `mp_f_freemode_01`) and 'female' or 'male'
 end
@@ -384,7 +379,10 @@ end
 local function guardsShootPlayer()
     if guardsShooting then return end
     guardsShooting = true
-    if #guards == 0 then return end
+    if #guards == 0 then
+        guardsShooting = false
+        return
+    end
 
     local shootDelay = (Config.Guards and Config.Guards.shootDelayMs) or 900
     local ped = PlayerPedId()
@@ -475,7 +473,7 @@ local function setPhase(phase, duration, remaining)
     syncUi('state')
 end
 
-local function cleanupGame()
+local function resetGame()
     activeGame = false
     gameRunning = false
     ending = false
@@ -550,7 +548,7 @@ local function finishGame()
     TriggerServerEvent('f17_squitgame:server:finish', elapsed)
 
     Wait(900)
-    cleanupGame()
+    resetGame()
 end
 
 local function cancelGame()
@@ -562,7 +560,7 @@ local function cancelGame()
     TriggerServerEvent('f17_squitgame:server:cancel')
 
     Wait(900)
-    cleanupGame()
+    resetGame()
 end
 
 local function timeoutGame()
@@ -574,7 +572,7 @@ local function timeoutGame()
     TriggerServerEvent('f17_squitgame:server:timeout')
 
     Wait(900)
-    cleanupGame()
+    resetGame()
 end
 
 local function isPedIgnoredForMovement(ped)
@@ -758,7 +756,7 @@ end)
 
 CreateThread(function()
     while true do
-        if not activeGame or returningToStart then
+        if not activeGame or not gameRunning or returningToStart then
             Wait(500)
         else
             Wait(350)
@@ -781,6 +779,6 @@ end)
 
 AddEventHandler('onResourceStop', function(resourceName)
     if resourceName ~= GetCurrentResourceName() then return end
-    cleanupGame()
+    resetGame()
     _G.__f17_squitgame_client_loaded = nil
 end)
