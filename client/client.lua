@@ -1,8 +1,3 @@
-if _G.__f17_squitgame_client_loaded then
-    return
-end
-_G.__f17_squitgame_client_loaded = true
-
 local activeGame = false
 local gameRunning = false
 local gamePhase = 'green'
@@ -20,41 +15,9 @@ local doll = nil
 local raceSlot = 1
 local ending = false
 local returningToStart = false
-local outfitKvpKey = 'f17_squitgame_old_outfit'
-
-local function clearSavedOutfitKvp()
-    DeleteResourceKvp(outfitKvpKey)
-end
-
-local function saveOutfitKvp()
-    if oldOutfit then
-        SetResourceKvp(outfitKvpKey, json.encode(oldOutfit))
-    end
-end
-
-local function loadOutfitKvp()
-    local raw = GetResourceKvpString(outfitKvpKey)
-    if not raw or raw == '' then return nil end
-
-    local ok, data = pcall(json.decode, raw)
-    if ok and data then
-        return data
-    end
-
-    clearSavedOutfitKvp()
-    return nil
-end
 
 local function notify(message, notifyType, duration)
-    if no and no.Notify then
-        no:Notify(message, notifyType or 'primary', duration or 3500)
-    elseif QBCore and QBCore.Functions and QBCore.Functions.Notify then
-        QBCore.Functions.Notify(message, notifyType or 'primary', duration or 3500)
-    else
-        BeginTextCommandThefeedPost('STRING')
-        AddTextComponentSubstringPlayerName(message)
-        EndTextCommandThefeedPostTicker(false, true)
-    end
+    no:Notify(message, notifyType or 'primary', duration or 3500)
 end
 
 local function getPedSex(ped)
@@ -63,19 +26,6 @@ end
 
 local function saveCurrentOutfit()
     local ped = PlayerPedId()
-
-    if GetResourceState('fivem-appearance') == 'started' then
-        local ok, appearance = pcall(function()
-            return exports['fivem-appearance']:getPedAppearance(ped)
-        end)
-
-        if ok and appearance then
-            oldOutfit = { appearance = appearance }
-            saveOutfitKvp()
-            return
-        end
-    end
-
     oldOutfit = { components = {}, props = {} }
 
     for component = 0, 11 do
@@ -92,8 +42,6 @@ local function saveCurrentOutfit()
             texture = GetPedPropTextureIndex(ped, prop)
         }
     end
-
-    saveOutfitKvp()
 end
 
 local function applySportsOutfit()
@@ -122,18 +70,6 @@ end
 
 local function saveAndApplyOutfit()
     saveCurrentOutfit()
-
-    if GetResourceState('fivem-appearance') == 'started' then
-        -- Native component apply keeps this resource independent while still compatible.
-        applySportsOutfit()
-        return
-    end
-
-    if GetResourceState('qb-clothing') == 'started' then
-        applySportsOutfit()
-        return
-    end
-
     applySportsOutfit()
 end
 
@@ -141,15 +77,6 @@ local function restoreOutfit()
     if not oldOutfit then return end
 
     local ped = PlayerPedId()
-
-    if oldOutfit.appearance and GetResourceState('fivem-appearance') == 'started' then
-        pcall(function()
-            exports['fivem-appearance']:setPedAppearance(ped, oldOutfit.appearance)
-        end)
-        oldOutfit = nil
-        clearSavedOutfitKvp()
-        return
-    end
 
     for component, data in pairs(oldOutfit.components or {}) do
         SetPedComponentVariation(ped, component, data.drawable, data.texture, data.palette)
@@ -164,7 +91,6 @@ local function restoreOutfit()
     end
 
     oldOutfit = nil
-    clearSavedOutfitKvp()
 end
 
 local function getGridCoords(coords, slot)
@@ -315,12 +241,7 @@ local function spawnDoll()
     if not Config.Doll or not Config.Doll.enabled then return end
 
     local model = requestModel(Config.Doll.model or 'prop_alien_egg_01')
-    if not model then
-        -- if Config.Debug then
-        --     print(('[f17_Squitgame] Failed to load doll model: %s'):format(Config.Doll.model or 'prop_alien_egg_01'))
-        -- end
-        return
-    end
+    if not model then return end
 
     local coords = Config.Doll.coords
     if not coords then
@@ -330,47 +251,19 @@ local function spawnDoll()
 
     local x, y, z = getGroundedCoords(coords, Config.Doll.groundOffset or 0.03)
 
-    if Config.Doll.type == 'object' then
-        doll = CreateObjectNoOffset(model, x, y, z, false, true, false)
-        
-        if DoesEntityExist(doll) then
-            SetEntityHeading(doll, coords.w or 0.0)
-            SetEntityCoordsNoOffset(doll, x, y, z, false, false, false)
-            PlaceObjectOnGroundProperly(doll)
-            SetEntityInvincible(doll, true)
-            FreezeEntityPosition(doll, true)
-            SetEntityCollision(doll, true, true)
-            
-            local scale = Config.Doll.scale or 1.0
-            applyEntityScale(doll, scale)
-            
-            -- if Config.Debug then
-            --     print(('[f17_Squitgame] Object doll spawned with scale: %.2f'):format(scale))
-            -- end
-        end
-    else
-        doll = CreatePed(4, model, x, y, z, coords.w or 0.0, false, true)
-        
-        if DoesEntityExist(doll) then
-            SetEntityAsMissionEntity(doll, true, true)
-            SetEntityHeading(doll, coords.w or 0.0)
-            SetEntityCoordsNoOffset(doll, x, y, z, false, false, false)
-            SetEntityInvincible(doll, true)
-            FreezeEntityPosition(doll, true)
-            SetEntityCollision(doll, true, true)
-
-            local scale = Config.Doll.scale or 1.0
-            SetPedConfigFlag(doll, 223, true)
-            applyEntityScale(doll, scale)
-
-            SetBlockingOfNonTemporaryEvents(doll, true)
-            SetPedCanRagdoll(doll, false)
-            SetPedFleeAttributes(doll, 0, false)
-            
-            -- if Config.Debug then
-            --     print(('[f17_Squitgame] Ped doll spawned with scale: %.2f'):format(scale))
-            -- end
-        end
+    doll = CreatePed(4, model, x, y, z, coords.w or 0.0, false, true)
+    if DoesEntityExist(doll) then
+        SetEntityAsMissionEntity(doll, true, true)
+        SetEntityHeading(doll, coords.w or 0.0)
+        SetEntityCoordsNoOffset(doll, x, y, z, false, false, false)
+        SetEntityInvincible(doll, true)
+        FreezeEntityPosition(doll, true)
+        SetEntityCollision(doll, true, true)
+        SetPedConfigFlag(doll, 223, true)
+        SetBlockingOfNonTemporaryEvents(doll, true)
+        SetPedCanRagdoll(doll, false)
+        SetPedFleeAttributes(doll, 0, false)
+        applyEntityScale(doll, Config.Doll.scale or 1.0)
     end
 
     SetModelAsNoLongerNeeded(model)
@@ -586,6 +479,81 @@ local function isPedIgnoredForMovement(ped)
         or IsPedSwimming(ped)
 end
 
+local function startGameThreads()
+    CreateThread(function()
+        while activeGame do
+            if gameRunning then
+                if GetGameTimer() >= gameEndsAt then
+                    timeoutGame()
+                    break
+                end
+
+                syncUi('state')
+            end
+
+            Wait(250)
+        end
+    end)
+
+    CreateThread(function()
+        while activeGame do
+            if not gameRunning then
+                Wait(500)
+            else
+                local ped = PlayerPedId()
+                local coords = GetEntityCoords(ped)
+                local finish = Config.FinishCoords
+                local dist = #(coords - finish)
+
+                if dist <= (Config.MarkerDrawDistance or 250.0) then
+                    DrawMarker(4, finish.x, finish.y, finish.z - 1.0, 0, 0, 0, 0, 0, 0, 12.0, 0.1, 150.0, 80, 255, 145, 85, false, true, 2, false, false, false, false)
+                end
+
+                if dist <= (Config.FinishDistance or 4.5) then
+                    finishGame()
+                    break
+                end
+
+                Wait(dist <= 80.0 and 0 or 180)
+            end
+        end
+    end)
+
+    CreateThread(function()
+        while activeGame do
+            if gameRunning and gamePhase == 'red' and not returningToStart then
+                Wait(Config.RedCheckIntervalMs or 175)
+
+                local ped = PlayerPedId()
+                if redAnchor and not isPedIgnoredForMovement(ped) and (GetGameTimer() - redStartedAt) >= (Config.RedGraceMs or 350) then
+                    local moved = #(GetEntityCoords(ped) - redAnchor)
+                    local velocity = GetEntitySpeed(ped)
+
+                    if moved > (Config.RedMoveThreshold or 0.22) and velocity > (Config.AllowSlightVelocity or 0.18) then
+                        returnPlayerToStart(Config.Lang.loseMove, true)
+                    end
+                end
+            else
+                Wait(250)
+            end
+        end
+    end)
+
+    CreateThread(function()
+        while activeGame do
+            if not gameRunning or returningToStart then
+                Wait(500)
+            else
+                Wait(350)
+                local ped = PlayerPedId()
+                if IsEntityDead(ped) or IsPedDeadOrDying(ped, true) or LocalPlayer.state.isDead then
+                    returnPlayerToStart('Ban da bi loai.')
+                end
+            end
+        end
+    end)
+end
+
 local function startGame(slot)
     if activeGame then
         notify(Config.Lang.alreadyPlaying, 'error', 3500)
@@ -648,13 +616,11 @@ local function startGame(slot)
     })
     gameRunning = true
     TriggerServerEvent('f17_squitgame:server:ready')
+    startGameThreads()
 
     CreateThread(function()
         Wait(1500)
         if activeGame and not ending and phaseDuration <= 0 then
-            if Config.Debug then
-                print('[f17_Squitgame] Phase sync missing, requesting again')
-            end
             TriggerServerEvent('f17_squitgame:server:ready')
         end
     end)
@@ -668,9 +634,6 @@ RegisterNetEvent('f17_squitgame:client:startGame', startGame)
 RegisterNetEvent('f17_squitgame:client:notify', notify)
 RegisterNetEvent('f17_squitgame:client:setPhase', function(phase, duration, remaining)
     if not activeGame or ending then return end
-    -- if Config.Debug then
-    --     print(('[f17_Squitgame] Phase sync: %s duration=%s remaining=%s'):format(tostring(phase), tostring(duration), tostring(remaining)))
-    -- end
     setPhase(phase, duration, remaining)
     gameRunning = true
 end)
@@ -692,93 +655,7 @@ RegisterCommand('exit', function()
     end
 end, false)
 
-CreateThread(function()
-    while true do
-        if not activeGame or not gameRunning then
-            Wait(500)
-        else
-            local now = GetGameTimer()
-            if now >= gameEndsAt then
-                timeoutGame()
-            end
-
-            syncUi('state')
-            Wait(250)
-        end
-    end
-end)
-
-CreateThread(function()
-    while true do
-        if not activeGame or not gameRunning then
-            Wait(500)
-        else
-            local ped = PlayerPedId()
-            local coords = GetEntityCoords(ped)
-            local finish = Config.FinishCoords
-            local dist = #(coords - finish)
-
-            if dist <= (Config.MarkerDrawDistance or 250.0) then
-                DrawMarker(4, finish.x, finish.y, finish.z - 1.0, 0, 0, 0, 0, 0, 0, 12.0, 0.1, 150.0, 80, 255, 145, 85, false, true, 2, false, false, false, false)
-            end
-
-            if dist <= (Config.FinishDistance or 4.5) then
-                finishGame()
-            end
-
-            Wait(dist <= 80.0 and 0 or 180)
-        end
-    end
-end)
-
-CreateThread(function()
-    while true do
-        if not activeGame or not gameRunning or returningToStart or gamePhase ~= 'red' then
-            Wait(250)
-        else
-            Wait(Config.RedCheckIntervalMs or 175)
-
-            if activeGame and gameRunning and gamePhase == 'red' then
-                local ped = PlayerPedId()
-                if redAnchor and not isPedIgnoredForMovement(ped) and (GetGameTimer() - redStartedAt) >= (Config.RedGraceMs or 350) then
-                    local coords = GetEntityCoords(ped)
-                    local moved = #(coords - redAnchor)
-                    local velocity = GetEntitySpeed(ped)
-
-                    if moved > (Config.RedMoveThreshold or 0.22) and velocity > (Config.AllowSlightVelocity or 0.18) then
-                        returnPlayerToStart(Config.Lang.loseMove, true)
-                    end
-                end
-            end
-        end
-    end
-end)
-
-CreateThread(function()
-    while true do
-        if not activeGame or not gameRunning or returningToStart then
-            Wait(500)
-        else
-            Wait(350)
-            local ped = PlayerPedId()
-            if IsEntityDead(ped) or IsPedDeadOrDying(ped, true) or LocalPlayer.state.isDead then
-                returnPlayerToStart('Ban da bi loai.')
-            end
-        end
-    end
-end)
-
-CreateThread(function()
-    Wait(1500)
-    local savedOutfit = loadOutfitKvp()
-    if savedOutfit then
-        oldOutfit = savedOutfit
-        restoreOutfit()
-    end
-end)
-
 AddEventHandler('onResourceStop', function(resourceName)
     if resourceName ~= GetCurrentResourceName() then return end
     resetGame()
-    _G.__f17_squitgame_client_loaded = nil
 end)

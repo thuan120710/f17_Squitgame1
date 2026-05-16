@@ -1,7 +1,7 @@
 Config = {}
 QBCore = exports["qb-core"]:GetCoreObject()
+no = exports['f17notify']
 
-Config.Debug = true
 Config.Command = 'squitgame'
 Config.StartEventName = 'f17_squitgame:start'
 Config.JoinWaitSeconds = 30
@@ -47,7 +47,6 @@ Config.Guards = {
 Config.Doll = {
     enabled = true,
     model = 's_m_m_movspace_01', 
-    type = 'ped',
     coords = vector4(1282.28, 3137.11, 40.41, 265.45),
     groundOffset = 6.0,
     scale = 10.0

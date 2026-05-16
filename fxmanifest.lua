@@ -38,13 +38,12 @@ server_exports {
 }
 
 dependencies {
-    'qb-core'
+    'qb-core',
+    'f17notify'
 }
 
 optional_dependencies {
     'ox_inventory',
     'f17_level',
-    'f17_daotrentroi',
-    'qb-clothing',
-    'fivem-appearance'
+    'f17_daotrentroi'
 }

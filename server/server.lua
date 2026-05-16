@@ -50,9 +50,6 @@ end
 
 local function sendPhase(src)
     local remaining = math.max(0, phaseEndsAt - getTimer())
-    -- if Config.Debug then
-    --     print(('[f17_Squitgame] Send phase %s to %s duration=%d remaining=%d'):format(currentPhase, src, phaseDuration, remaining))
-    -- end
     TriggerClientEvent('f17_squitgame:client:setPhase', src, currentPhase, phaseDuration, remaining)
 end
 
@@ -172,13 +169,10 @@ local function punishLeave(src)
 end
 
 local function registerActivePlayer(src, slot)
-    local player = QBCore.Functions.GetPlayer(src)
-    if not player then return end
+    if not QBCore.Functions.GetPlayer(src) then return end
 
     activePlayers[src] = {
         raceId = currentRaceId,
-        cid = player.PlayerData.citizenid,
-        name = (player.PlayerData.charinfo.firstname or '') .. ' ' .. (player.PlayerData.charinfo.lastname or ''),
         ready = false
     }
 
@@ -321,13 +315,11 @@ RegisterNetEvent('f17_squitgame:server:cancel', function()
     punishLeave(src)
 end)
 
-function StartMiniGame(modeOrData, dataOrLabel, labelMiniGame)
+function StartMiniGame(modeOrData, dataOrLabel)
     local data = dataOrLabel
-    local label = labelMiniGame
 
     if type(modeOrData) == 'table' then
         data = modeOrData
-        label = dataOrLabel
     end
 
     currentRaceId = currentRaceId + 1
@@ -352,7 +344,6 @@ function StartMiniGame(modeOrData, dataOrLabel, labelMiniGame)
         finishOrder = 0
     end
 
-    -- print(('[f17_Squitgame] Started %s with %d players'):format(label or 'Squit Game', totalPlayers))
 end
 
 exports('StartMiniGame', StartMiniGame)
