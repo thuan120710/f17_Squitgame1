@@ -295,15 +295,11 @@ RegisterNetEvent('f17_squitgame:server:finish', function(elapsed)
     resetIfEmpty()
 end)
 
-RegisterNetEvent('f17_squitgame:server:eliminated', function(reason)
+RegisterNetEvent('f17_squitgame:server:timeout', function()
     local src = source
     if not activePlayers[src] then return end
 
     activePlayers[src] = nil
-
-    if GetResourceState('f17_daotrentroi') == 'started' then
-        exports['f17_daotrentroi']:HinhPhatMinigame(src, '[SQUITGAME]', 'thoat')
-    end
 
     Config.LostPlayer(src)
     resetIfEmpty()

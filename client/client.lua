@@ -19,6 +19,7 @@ local guardsShooting = false
 local doll = nil
 local raceSlot = 1
 local ending = false
+local returningToStart = false
 local outfitKvpKey = 'f17_squitgame_old_outfit'
 
 local function clearSavedOutfitKvp()
@@ -478,6 +479,7 @@ local function cleanupGame()
     activeGame = false
     gameRunning = false
     ending = false
+    returningToStart = false
     gamePhase = 'green'
     phaseDuration = 0
     phaseEndsAt = 0
@@ -500,28 +502,76 @@ local function cleanupGame()
     end
 end
 
-local function finishGame(result, reason)
+local function returnPlayerToStart(reason, shootBeforeReturn)
+    if returningToStart or not activeGame or ending then return end
+    returningToStart = true
+
+    local coords = getGridCoords(Config.StartCoords, raceSlot or 1)
+    local ped = PlayerPedId()
+
+    notify(reason or Config.Lang.loseMove, 'error', 3500)
+
+    if shootBeforeReturn then
+        guardsShootPlayer()
+    end
+
+    DoScreenFadeOut(300)
+    Wait(350)
+
+    if IsEntityDead(ped) or IsPedDeadOrDying(ped, true) or LocalPlayer.state.isDead then
+        Config.ReviveFunction()
+        Wait(300)
+        ped = PlayerPedId()
+    end
+
+    ClearPedTasksImmediately(ped)
+    FreezeEntityPosition(ped, false)
+    SetEntityCoordsNoOffset(ped, coords.x, coords.y, coords.z, false, false, false)
+    SetEntityHeading(ped, coords.w)
+    SetEntityHealth(ped, math.max(GetEntityHealth(ped), 200))
+    DoScreenFadeIn(300)
+
+    if gamePhase == 'red' then
+        redAnchor = GetEntityCoords(ped)
+        redStartedAt = GetGameTimer()
+    end
+
+    guardsShooting = false
+    returningToStart = false
+end
+
+local function finishGame()
     if not activeGame or ending then return end
     ending = true
 
     local elapsed = GetGameTimer() - gameStartAt
-    sendUi('result', { result = result, reason = reason or '' })
+    sendUi('result', { result = 'win' })
+    notify(Config.Lang.win, 'success', 5000)
+    TriggerServerEvent('f17_squitgame:server:finish', elapsed)
 
-    if result == 'win' then
-        notify(Config.Lang.win, 'success', 5000)
-        TriggerServerEvent('f17_squitgame:server:finish', elapsed)
-    elseif result == 'cancel' then
-        notify(Config.Lang.cancelled, 'error', 3500)
-        TriggerServerEvent('f17_squitgame:server:cancel')
-    else
-        notify(reason or Config.Lang.loseTime, 'error', 5000)
-        TriggerServerEvent('f17_squitgame:server:eliminated', reason or 'lose')
-        cleanupGame()
-        if Config.EliminateKillsPlayer then
-            SetEntityHealth(PlayerPedId(), 0)
-        end
-        return
-    end
+    Wait(900)
+    cleanupGame()
+end
+
+local function cancelGame()
+    if not activeGame or ending then return end
+    ending = true
+
+    sendUi('result', { result = 'cancel' })
+    notify(Config.Lang.cancelled, 'error', 3500)
+    TriggerServerEvent('f17_squitgame:server:cancel')
+
+    Wait(900)
+    cleanupGame()
+end
+
+local function timeoutGame()
+    if not activeGame or ending then return end
+    ending = true
+
+    sendUi('result', { result = 'lose', reason = Config.Lang.loseTime })
+    notify(Config.Lang.loseTime, 'error', 5000)
+    TriggerServerEvent('f17_squitgame:server:timeout')
 
     Wait(900)
     cleanupGame()
@@ -548,6 +598,7 @@ local function startGame(slot)
     local coords = getGridCoords(Config.StartCoords, slot or 1)
     raceSlot = slot or 1
     ending = false
+    returningToStart = false
     gamePhase = 'green'
     phaseDuration = 0
     phaseEndsAt = 0
@@ -626,7 +677,7 @@ RegisterNetEvent('f17_squitgame:client:setPhase', function(phase, duration, rema
     gameRunning = true
 end)
 RegisterNetEvent('f17_squitgame:client:forceCancel', function()
-    finishGame('cancel')
+    cancelGame()
 end)
 
 RegisterCommand(Config.Command, function()
@@ -634,12 +685,12 @@ RegisterCommand(Config.Command, function()
 end, false)
 
 RegisterCommand('squit_cancel', function()
-    finishGame('cancel')
+    cancelGame()
 end, false)
 
 RegisterCommand('exit', function()
     if activeGame then
-        finishGame('cancel')
+        cancelGame()
     end
 end, false)
 
@@ -650,7 +701,7 @@ CreateThread(function()
         else
             local now = GetGameTimer()
             if now >= gameEndsAt then
-                finishGame('lose', Config.Lang.loseTime)
+                timeoutGame()
             end
 
             syncUi('state')
@@ -674,7 +725,7 @@ CreateThread(function()
             end
 
             if dist <= (Config.FinishDistance or 4.5) then
-                finishGame('win')
+                finishGame()
             end
 
             Wait(dist <= 80.0 and 0 or 180)
@@ -684,7 +735,7 @@ end)
 
 CreateThread(function()
     while true do
-        if not activeGame or not gameRunning or gamePhase ~= 'red' then
+        if not activeGame or not gameRunning or returningToStart or gamePhase ~= 'red' then
             Wait(250)
         else
             Wait(Config.RedCheckIntervalMs or 175)
@@ -697,8 +748,7 @@ CreateThread(function()
                     local velocity = GetEntitySpeed(ped)
 
                     if moved > (Config.RedMoveThreshold or 0.22) and velocity > (Config.AllowSlightVelocity or 0.18) then
-                        guardsShootPlayer()
-                        finishGame('lose', Config.Lang.loseMove)
+                        returnPlayerToStart(Config.Lang.loseMove, true)
                     end
                 end
             end
@@ -708,13 +758,13 @@ end)
 
 CreateThread(function()
     while true do
-        if not activeGame then
+        if not activeGame or returningToStart then
             Wait(500)
         else
             Wait(350)
             local ped = PlayerPedId()
             if IsEntityDead(ped) or IsPedDeadOrDying(ped, true) or LocalPlayer.state.isDead then
-                finishGame('lose', 'Ban da bi loai.')
+                returnPlayerToStart('Ban da bi loai.')
             end
         end
     end

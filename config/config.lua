@@ -64,7 +64,6 @@ Config.RedCheckIntervalMs = 175
 Config.RedMoveThreshold = 0.26
 Config.RedGraceMs = 1200
 Config.AllowSlightVelocity = 0.22
-Config.EliminateKillsPlayer = true
 
 Config.SportsOutfit = {
     male = {
